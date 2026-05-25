@@ -1,0 +1,9 @@
+matplotlib
+scikit-learn
+kagglehub
+kagglehub[pandas-datasets]
+numpy
+torch
+torchvision
+transformers
+Pillow
