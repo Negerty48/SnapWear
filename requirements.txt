@@ -7,3 +7,5 @@ torch
 torchvision
 transformers
 Pillow
+rembg
+rembg[cpu]
