@@ -58,11 +58,11 @@ export default function Home() {
       <header className="bg-white shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">SnapWear</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Trendy Market</h1>
             <p className="text-gray-600 mt-1">Descubre las mejores prendas de moda</p>
           </div>
           <div className="flex gap-4">
-            <button 
+            <button
               onClick={() => setIsBuscarModalOpen(true)}
               className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2"
             >
@@ -72,7 +72,7 @@ export default function Home() {
               </svg>
               Buscar por Foto
             </button>
-            <button 
+            <button
               onClick={() => setIsSubirModalOpen(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors shadow-sm flex items-center gap-2"
             >
@@ -182,10 +182,10 @@ export default function Home() {
             >
               {"<"}
             </button>
-            
+
             <div className="flex items-center space-x-2">
               {/* Always show page 1 */}
-              <span 
+              <span
                 className={`px-4 py-2 rounded-lg font-medium shadow-sm cursor-pointer transition-colors ${currentPage === 1 ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
                 onClick={() => { setCurrentPage(1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               >
@@ -207,7 +207,7 @@ export default function Home() {
 
               {/* Always show last page if totalPages > 1 */}
               {totalPages > 1 && (
-                <span 
+                <span
                   className={`px-4 py-2 rounded-lg font-medium shadow-sm cursor-pointer transition-colors ${currentPage === totalPages ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-700'}`}
                   onClick={() => { setCurrentPage(totalPages); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 >
@@ -257,7 +257,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-lg font-bold mb-4">SnapWear</h3>
+              <h3 className="text-lg font-bold mb-4">Trendy Market</h3>
               <p className="text-gray-400">
                 La mejor plataforma para comprar y vender prendas de moda
               </p>
@@ -299,7 +299,7 @@ export default function Home() {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 SnapWear. Todos los derechos reservados.</p>
+            <p>&copy; 2026 Trendy Market. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

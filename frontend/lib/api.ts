@@ -152,4 +152,35 @@ export async function buscarAnunciosPorImagen(formData: FormData): Promise<Anunc
   }
 }
 
+export interface Deteccion {
+  index: number;
+  base64_image: string;
+}
+
+/**
+ * Detect clothing items in an image (file or URL)
+ */
+export async function detectarPrendas(formData: FormData): Promise<Deteccion[]> {
+  try {
+    const url = `${API_BASE_URL}/ai/detect`;
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.detections as Deteccion[];
+  } catch (error) {
+    console.error('Error detecting clothing:', error);
+    throw error;
+  }
+}
+
+
 

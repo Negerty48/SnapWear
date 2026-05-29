@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { buscarAnunciosPorImagen, Anuncio } from '@/lib/api';
+import { buscarAnunciosPorImagen, detectarPrendas, Anuncio, Deteccion } from '@/lib/api';
 import Image from 'next/image';
 import AnuncioCard from './AnuncioCard';
 
@@ -17,6 +17,11 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Anuncio[] | null>(null);
+  
+  const [detections, setDetections] = useState<Deteccion[] | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -26,6 +31,8 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
     setPreview(null);
     setResults(null);
     setError(null);
+    setDetections(null);
+    setSelectedBoxIndex(null);
   };
 
   const handleClose = () => {
@@ -33,19 +40,54 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
     onClose();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (selected) {
       setFile(selected);
       const url = URL.createObjectURL(selected);
       setPreview(url);
-      setResults(null); // Clear previous results when a new image is chosen
+      setResults(null);
+      setDetections(null);
+      setSelectedBoxIndex(null);
+      setError(null);
+      
+      try {
+        setIsDetecting(true);
+        const formData = new FormData();
+        formData.append('file', selected);
+        const data = await detectarPrendas(formData);
+        setDetections(data);
+        if (data.length > 0) {
+          setSelectedBoxIndex(data[0].index);
+          
+          if (data.length === 1) {
+            setIsSubmitting(true);
+            const searchData = new FormData();
+            searchData.append('file', selected);
+            searchData.append('box_index', data[0].index.toString());
+            try {
+              const response = await buscarAnunciosPorImagen(searchData);
+              setResults(response.items);
+            } catch (err: any) {
+              setError(err.message || 'Error al buscar anuncios');
+            } finally {
+              setIsSubmitting(false);
+            }
+          }
+        } else {
+          setError("No se detectaron prendas en la imagen.");
+        }
+      } catch (err: any) {
+        setError(err.message || 'Error detectando prendas en la imagen');
+      } finally {
+        setIsDetecting(false);
+      }
     }
   };
 
   const handleSearch = async () => {
-    if (!file) {
-      setError("Por favor, selecciona una imagen.");
+    if (!file || selectedBoxIndex === null) {
+      setError("Por favor, sube una imagen y selecciona una prenda.");
       return;
     }
     
@@ -55,6 +97,7 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
       
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('box_index', selectedBoxIndex.toString());
       
       const response = await buscarAnunciosPorImagen(formData);
       setResults(response.items);
@@ -68,7 +111,7 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white p-6 border-b flex justify-between items-center z-10">
           <h2 className="text-2xl font-bold">Buscar por Foto</h2>
           <button onClick={handleClose} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">✕</button>
@@ -84,7 +127,7 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Upload Section */}
             <div className="space-y-4">
-              <label className="block text-sm font-medium text-gray-700">Selecciona la imagen de la prenda</label>
+              <label className="block text-sm font-medium text-gray-700">1. Sube una foto de referencia</label>
               <div 
                 className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${preview ? 'border-blue-300 bg-blue-50' : 'border-gray-300 hover:bg-gray-50'}`}
                 onClick={() => fileInputRef.current?.click()}
@@ -109,21 +152,48 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
                 accept="image/*" 
                 onChange={handleFileChange}
               />
+              
+              {/* Detections Selection */}
+              {isDetecting && (
+                <div className="flex items-center gap-2 text-blue-600 justify-center py-4">
+                  <div className="h-5 w-5 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+                  <span>Detectando prendas en la imagen...</span>
+                </div>
+              )}
+              
+              {detections && detections.length > 1 && (
+                <>
+                  <div className="mt-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">2. Selecciona la prenda a buscar</label>
+                    <div className="flex gap-4 overflow-x-auto py-2">
+                      {detections.map((det) => (
+                        <div 
+                          key={det.index}
+                          onClick={() => setSelectedBoxIndex(det.index)}
+                          className={`relative shrink-0 w-24 h-24 rounded-lg cursor-pointer overflow-hidden border-4 transition-colors ${selectedBoxIndex === det.index ? 'border-blue-600' : 'border-transparent hover:border-gray-300'}`}
+                        >
+                          <Image src={`data:image/jpeg;base64,${det.base64_image}`} alt={`Deteccion ${det.index}`} fill className="object-cover" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              <button 
-                onClick={handleSearch}
-                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium"
-                disabled={!file || isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
-                    Analizando con IA...
-                  </>
-                ) : (
-                  'Buscar Prendas Similares'
-                )}
-              </button>
+                  <button 
+                    onClick={handleSearch}
+                    className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 font-medium mt-4"
+                    disabled={!file || isSubmitting || selectedBoxIndex === null}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="h-5 w-5 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                        Buscando en catálogo...
+                      </>
+                    ) : (
+                      '3. Buscar Similares'
+                    )}
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Results Section */}
@@ -131,15 +201,15 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
               <label className="block text-sm font-medium text-gray-700 mb-4">Resultados</label>
               
               {!results && !isSubmitting && (
-                <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-gray-500">Sube una foto y busca para ver resultados</p>
+                <div className="h-full min-h-[300px] flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-gray-500 text-center px-8">Selecciona una prenda detectada y pulsa "Buscar" para ver prendas similares de nuestro catálogo.</p>
                 </div>
               )}
 
               {isSubmitting && (
-                <div className="h-64 flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
+                <div className="h-full min-h-[300px] flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-gray-200">
                   <div className="h-8 w-8 rounded-full border-4 border-blue-600 border-t-transparent animate-spin mb-4"></div>
-                  <p className="text-gray-600">Procesando y buscando similitudes...</p>
+                  <p className="text-gray-600">Procesando IA y buscando similitudes...</p>
                 </div>
               )}
 

@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'SnapWear - Fashion E-commerce',
-  description: 'Descubre las mejores prendas de moda en SnapWear',
+  title: 'Trendy Market',
+  description: 'Descubre las mejores prendas de moda en Trendy Market',
 }
 
 export default function RootLayout({

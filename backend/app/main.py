@@ -2,6 +2,7 @@
 FastAPI main application for SnapWear backend.
 """
 import os
+import requests
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -10,7 +11,7 @@ from typing import List
 from app.database import get_db, engine
 from app.models import Anuncios
 from app.schemas import AnuncioResponse, AnunciosListResponse
-from app.ai_service import process_image_for_vector
+from app.ai_service import process_image_for_vector, detect_clothing
 from app.azure_storage import upload_image
 
 # Initialize FastAPI app
@@ -161,18 +162,19 @@ async def get_anuncios_similares(anuncio_id: int, db: Session = Depends(get_db))
 async def create_anuncio(
     precio: float = Form(...),
     descripcion: str = Form(""),
+    box_index: int = Form(0),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
-    Create a new announcement with image upload and AI vectorization.
+    Create a new announcement with image upload and AI vectorization for a specific garment.
     """
     try:
         # Read file bytes
         file_bytes = await file.read()
         
         # 1. Process image with YOLO and FashionCLIP
-        vector = process_image_for_vector(file_bytes)
+        vector = process_image_for_vector(file_bytes, box_index=box_index)
         
         # 2. Upload to Azure Blob Storage
         image_url = upload_image(file_bytes, file.filename)
@@ -199,21 +201,58 @@ async def create_anuncio(
         )
 
 
-# POST /anuncios/buscar - Visual search by image
+# POST /ai/detect - Detect clothing items in an image
+@app.post("/ai/detect", tags=["AI"])
+async def ai_detect_clothing(
+    file: UploadFile = File(None),
+    url: str = Form(None)
+):
+    """
+    Detects clothing items in an image and returns them as base64 cropped images.
+    """
+    try:
+        if file:
+            file_bytes = await file.read()
+        elif url:
+            resp = requests.get(url)
+            resp.raise_for_status()
+            file_bytes = resp.content
+        else:
+            raise HTTPException(status_code=400, detail="Must provide either file or url")
+            
+        detections = detect_clothing(file_bytes)
+        return {"detections": detections}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error detecting clothing: {str(e)}"
+        )
+
+
+# POST /anuncios/buscar - Visual search by image or URL
 @app.post("/anuncios/buscar", response_model=AnunciosListResponse, tags=["Anuncios"])
 async def buscar_por_imagen(
-    file: UploadFile = File(...),
+    box_index: int = Form(0),
+    file: UploadFile = File(None),
+    url: str = Form(None),
     db: Session = Depends(get_db)
 ):
     """
-    Find similar announcements using an uploaded image without saving it to the database.
+    Find similar announcements using an uploaded image or URL without saving it to the database.
+    Allows specifying which bounding box to use via box_index.
     """
     try:
-        # Read file bytes
-        file_bytes = await file.read()
+        if file:
+            file_bytes = await file.read()
+        elif url:
+            resp = requests.get(url)
+            resp.raise_for_status()
+            file_bytes = resp.content
+        else:
+            raise HTTPException(status_code=400, detail="Must provide either file or url")
         
-        # Process image with YOLO and FashionCLIP to get the vector
-        vector = process_image_for_vector(file_bytes)
+        # Process image with YOLO and FashionCLIP to get the vector for the selected crop
+        vector = process_image_for_vector(file_bytes, box_index=box_index)
         
         # Query pgvector for the closest 3 vectors
         similares = db.query(Anuncios)\
