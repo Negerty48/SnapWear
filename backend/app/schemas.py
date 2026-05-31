@@ -31,6 +31,7 @@ class AnuncioResponse(AnuncioBase):
     """Schema for Anuncio response"""
     id: int
     vector_clip: Optional[List[float]] = Field(None, description="Vector de embedding CLIP (512 dimensiones)")
+    similarity: Optional[float] = Field(None, description="Puntuación de similitud (0-1, donde 1 es idéntico)")
 
     class Config:
         from_attributes = True

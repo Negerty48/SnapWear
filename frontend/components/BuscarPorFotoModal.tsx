@@ -17,6 +17,7 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<Anuncio[] | null>(null);
+  const [displayedCount, setDisplayedCount] = useState(4);
   
   const [detections, setDetections] = useState<Deteccion[] | null>(null);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -33,6 +34,7 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
     setError(null);
     setDetections(null);
     setSelectedBoxIndex(null);
+    setDisplayedCount(4);
   };
 
   const handleClose = () => {
@@ -216,13 +218,30 @@ export default function BuscarPorFotoModal({ isOpen, onClose, onSelectResult }: 
               {results && (
                 <div className="space-y-4">
                   {results.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {results.map(anuncio => (
-                        <div key={anuncio.id} onClick={() => { onSelectResult(anuncio); handleClose(); }} className="cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-lg transition-all">
-                          <AnuncioCard anuncio={anuncio} onClick={() => {}} />
-                        </div>
-                      ))}
-                    </div>
+                    <>
+                      <div className="grid grid-cols-4 gap-4">
+                        {results.slice(0, displayedCount).map(anuncio => (
+                          <div key={anuncio.id} onClick={() => { onSelectResult(anuncio); handleClose(); }} className="cursor-pointer hover:ring-2 hover:ring-blue-500 rounded-lg transition-all">
+                            <AnuncioCard anuncio={anuncio} onClick={() => {}} />
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {displayedCount < results.length && (
+                        <button 
+                          onClick={() => setDisplayedCount(prev => prev + 4)}
+                          className="w-full mt-4 px-4 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                        >
+                          Mostrar más prendas
+                        </button>
+                      )}
+                      
+                      {displayedCount >= results.length && results.length > 4 && (
+                        <p className="w-full mt-4 text-center text-gray-500 py-3">
+                          No hay más prendas similares
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className="text-gray-500 text-center py-8">No se encontraron prendas similares.</p>
                   )}

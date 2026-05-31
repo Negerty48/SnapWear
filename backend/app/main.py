@@ -240,6 +240,7 @@ async def buscar_por_imagen(
     """
     Find similar announcements using an uploaded image or URL without saving it to the database.
     Allows specifying which bounding box to use via box_index.
+    Returns all results with similarity >= 0.5.
     """
     try:
         if file:
@@ -254,18 +255,39 @@ async def buscar_por_imagen(
         # Process image with YOLO and FashionCLIP to get the vector for the selected crop
         vector = process_image_for_vector(file_bytes, box_index=box_index)
         
-        # Query pgvector for the closest 3 vectors
-        similares = db.query(Anuncios)\
+        # Query pgvector for similar vectors, get top 100 to filter by similarity threshold
+        similares_with_distance = db.query(
+            Anuncios,
+            Anuncios.vector_clip.cosine_distance(vector).label('distance')
+        )\
             .filter(Anuncios.vector_clip != None)\
             .order_by(Anuncios.vector_clip.cosine_distance(vector))\
-            .limit(3)\
+            .limit(100)\
             .all()
-            
+        
+        # Filter by similarity threshold (0.5) and build response
+        # Similarity = 1 - (distance / 2), where distance is cosine distance (0-2 range)
+        items = []
+        for anuncio, distance in similares_with_distance:
+            similarity = 1 - (distance / 2)
+            if similarity >= 0.8:
+                # Create response object with similarity
+                anuncio_dict = {
+                    "id": anuncio.id,
+                    "precio": float(anuncio.precio),
+                    "imagen_url": anuncio.imagen_url,
+                    "descripcion": anuncio.descripcion,
+                    "vendedor_id": anuncio.vendedor_id,
+                    "vector_clip": anuncio.vector_clip,
+                    "similarity": round(similarity, 3)
+                }
+                items.append(anuncio_dict)
+        
         return {
-            "items": similares,
-            "total": len(similares),
+            "items": items,
+            "total": len(items),
             "page": 1,
-            "size": len(similares),
+            "size": len(items),
             "pages": 1
         }
         

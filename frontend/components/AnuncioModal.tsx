@@ -13,6 +13,7 @@ interface AnuncioModalProps {
 
 export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar }: AnuncioModalProps) {
   const [similares, setSimilares] = useState<Anuncio[]>([]);
+  const [displayedCount, setDisplayedCount] = useState(3);
   const [isLoadingSimilares, setIsLoadingSimilares] = useState(false);
   
   const [detections, setDetections] = useState<Deteccion[] | null>(null);
@@ -27,6 +28,7 @@ export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar
         setDetections(null);
         setSelectedBoxIndex(null);
         setSimilares([]);
+        setDisplayedCount(3);
         
         try {
           const formData = new FormData();
@@ -48,6 +50,7 @@ export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar
       setDetections(null);
       setSelectedBoxIndex(null);
       setSimilares([]);
+      setDisplayedCount(3);
     }
   }, [isOpen, anuncio?.imagen_url]);
 
@@ -64,7 +67,7 @@ export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar
           
           // Filter out the current announcement from results
           const filteredItems = response.items.filter(item => item.id !== anuncio.id);
-          setSimilares(filteredItems.slice(0, 3)); // Ensure max 3 are shown
+          setSimilares(filteredItems); // Load all filtered items for pagination
         } catch (error) {
           console.error("Error al cargar similares", error);
         } finally {
@@ -74,6 +77,18 @@ export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar
       loadSimilares();
     }
   }, [isOpen, anuncio?.imagen_url, anuncio?.id, selectedBoxIndex]);
+
+  // Prevent scroll on body when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
 
   if (!isOpen || !anuncio) return null;
 
@@ -196,32 +211,49 @@ export default function AnuncioModal({ anuncio, isOpen, onClose, onSelectSimilar
                 </div>
               </div>
             ) : similares.length > 0 ? (
-              <div className="grid grid-cols-3 gap-4">
-                {similares.map((sim) => (
-                  <div 
-                    key={sim.id} 
-                    className="cursor-pointer group"
-                    onClick={() => onSelectSimilar && onSelectSimilar(sim)}
-                  >
-                    <div className="relative w-full h-32 bg-gray-200 rounded-lg mb-2 overflow-hidden">
-                      {sim.imagen_url ? (
-                        <Image
-                          src={sim.imagen_url}
-                          alt={`Anuncio similar ${sim.id}`}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform"
-                          sizes="(max-width: 768px) 33vw, 200px"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-300">
-                          <span className="text-gray-500 text-xs text-center">Sin imagen</span>
-                        </div>
-                      )}
+              <>
+                <div className="grid grid-cols-3 gap-4">
+                  {similares.slice(0, displayedCount).map((sim) => (
+                    <div 
+                      key={sim.id} 
+                      className="cursor-pointer group"
+                      onClick={() => onSelectSimilar && onSelectSimilar(sim)}
+                    >
+                      <div className="relative w-full h-32 bg-gray-200 rounded-lg mb-2 overflow-hidden">
+                        {sim.imagen_url ? (
+                          <Image
+                            src={sim.imagen_url}
+                            alt={`Anuncio similar ${sim.id}`}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                            sizes="(max-width: 768px) 33vw, 200px"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-300">
+                            <span className="text-gray-500 text-xs text-center">Sin imagen</span>
+                          </div>
+                        )}
+                      </div>
+                      <p className="font-bold text-blue-600">${sim.precio.toFixed(2)}</p>
                     </div>
-                    <p className="font-bold text-blue-600">${sim.precio.toFixed(2)}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                
+                {displayedCount < similares.length && (
+                  <button 
+                    onClick={() => setDisplayedCount(prev => prev + 3)}
+                    className="w-full mt-4 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                  >
+                    Mostrar más prendas
+                  </button>
+                )}
+                
+                {displayedCount >= similares.length && similares.length > 3 && (
+                  <p className="w-full mt-4 text-center text-gray-500 py-2 text-sm">
+                    No hay más prendas similares
+                  </p>
+                )}
+              </>
             ) : (
               <p className="text-gray-500 text-sm bg-gray-50 p-4 rounded-lg border border-gray-100 text-center">No se encontraron prendas similares en el catálogo para esta selección.</p>
             )}

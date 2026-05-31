@@ -9,6 +9,7 @@ export interface Anuncio {
   descripcion?: string;
   vendedor_id?: string;
   vector_clip?: number[];
+  similarity?: number;
 }
 
 export interface AnunciosResponse {
